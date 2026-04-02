@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>HackerOS Terminal</title>
+<style>
+body{margin:0;background:black;color:red;font-family:monospace;overflow:hidden;}
+#matrix{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;}
+#boot{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-size:24px;color:red;text-align:center;z-index:2;}
+#passwordPanel{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:black;border:2px solid red;padding:20px;text-align:center;display:none;z-index:5;animation:fadeIn 0.8s;}
+#passwordPanel input{background:black;color:red;border:1px solid red;padding:5px;font-size:18px;text-align:center;outline:none;}
+#terminal{position:fixed;bottom:0;left:0;width:100%;height:40%;background:rgba(0,0,0,0.9);padding:10px;box-sizing:border-box;z-index:3;overflow-y:auto;color:red;display:none;}
+#output p{margin:0;}
+#cmd{width:100%;background:black;color:red;border:none;outline:none;font-family:monospace;font-size:16px;}
+#mapPanel{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:400px;height:300px;background:black;border:2px solid red;display:none;z-index:6;text-align:center;padding:10px;}
+#mapPanel img{width:100%;height:240px;object-fit:cover;border:1px solid red;}
+#mapButtons{margin-top:5px;}
+#mapButtons button{background:black;color:red;border:1px solid red;padding:5px;margin:2px;cursor:pointer;}
+#lockNotice{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);color:red;font-size:28px;font-weight:bold;text-align:center;display:none;z-index:7;border:2px solid red;padding:20px;background:black;}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+</style>
+</head>
+<body>
+<canvas id="matrix"></canvas>
+<div id="boot"></div>
+
+<div id="passwordPanel">
+<p>Enter Password to Access Terminal:</p>
+<input type="password" id="passwordInput" placeholder="Password">
+</div>
+
+<div id="lockNotice">TOO MANY WRONG ATTEMPTS! TERMINAL LOCKED!<br>Refresh page to retry.</div>
+
+<div id="terminal">
+<div id="output"></div>
+<input id="cmd" autofocus placeholder="Enter command...">
+</div>
+
+<div id="mapPanel">
+<img id="mapImg" src="">
+<div id="mapButtons">
+<button id="changeLoc">Change Location</button>
+<button id="closeMap">Close Map</button>
+</div>
+</div>
+
+<script>
+// MATRIX
+let canvas=document.getElementById("matrix"),ctx=canvas.getContext("2d")
+canvas.height=window.innerHeight
+canvas.width=window.innerWidth
+let letters="01".split(""),fontSize=14,columns=Math.floor(canvas.width/fontSize),drops=[]
+for(let x=0;x<columns;x++) drops[x]=1
+function drawMatrix(){ctx.fillStyle="rgba(0,0,0,0.05)";ctx.fillRect(0,0,canvas.width,canvas.height);ctx.fillStyle="#0f0";ctx.font=fontSize+"px monospace";for(let i=0;i<drops.length;i++){ctx.fillText(letters[Math.floor(Math.random()*letters.length)],i*fontSize,drops[i]*fontSize);if(drops[i]*fontSize>canvas.height && Math.random()>0.975)drops[i]=0;drops[i]++}}
+setInterval(drawMatrix,33)
+
+// BOOT
+let boot=document.getElementById("boot")
+let bootText=["Booting HackerOS...","Loading kernel...","Starting network...","Initializing terminal...","System ready."]
+let bIndex=0
+function bootSequence(){if(bIndex<bootText.length){boot.innerHTML+=bootText[bIndex]+"<br>";bIndex++;setTimeout(bootSequence,700)}else{boot.style.display="none";document.getElementById("passwordPanel").style.display="block";document.getElementById("passwordInput").focus()}}
+bootSequence()
+
+// PASSWORD + 3 FAIL LOCK
+let attempts=0,MAX_ATTEMPTS=3
+const PASSWORD="HackerOs16"
+let passwordPanel=document.getElementById("passwordPanel")
+let passwordInput=document.getElementById("passwordInput")
+let terminal=document.getElementById("terminal")
+let output=document.getElementById("output")
+let cmd=document.getElementById("cmd")
+let locked=false
+let lockNotice=document.getElementById("lockNotice")
+
+passwordInput.addEventListener("keydown",function(e){
+if(locked) return;
+if(e.key==="Enter"){
+if(passwordInput.value===PASSWORD){
+passwordPanel.style.display="none"
+terminal.style.display="block"
+cmd.focus()
+attempts=0
+}else{
+attempts++
+if(attempts>=MAX_ATTEMPTS){
+locked=true
+passwordInput.disabled=true
+lockNotice.style.display="block"
+}else{
+alert("Wrong password! Attempts left: "+(MAX_ATTEMPTS-attempts))
+passwordInput.value=""
+}}}})
+
+// Terminal functions
+function print(t){let p=document.createElement("p");p.textContent=t;output.appendChild(p);output.scrollTop=output.scrollHeight}
+function randomIP(){return Math.floor(Math.random()*255)+"."+Math.floor(Math.random()*255)+"."+Math.floor(Math.random()*255)+"."+Math.floor(Math.random()*255)}
+function randomPass(){let chars="abcdef123456789012345678",pass="";for(let i=0;i<8;i++) pass+=chars[Math.floor(Math.random()*chars.length)];return pass}
+function randomSSID(){let list=["HOME_NET","TP_LINK","CAFE_WIFI","NETGEAR","HACKLAB","SCHOOL_WIFI"];return list[Math.floor(Math.random()*list.length)]}
+
+// Terminal commands
+cmd.addEventListener("keydown",function(e){
+if(e.key==="Enter"){
+let command=cmd.value
+print("> "+command)
+if(command==="help"){print("COMMANDS:");print("hack, scan, wifi, traffic, map, ai analyze, ai predict, clear")}
+else if(command==="clear"){output.innerHTML=""}
+else if(command==="scan"){print("Scanning network...");for(let i=0;i<5;i++) print(randomIP()+" | TURKEY | ASIA")}
+else if(command==="wifi"){print("Scanning WIFI networks...");for(let i=0;i<5;i++) print("SSID: "+randomSSID()+" | PASS: "+randomPass())}
+else if(command==="traffic"){print("Network traffic:");for(let i=0;i<10;i++) print("PACKET "+randomIP()+" -> "+randomIP())}
+else if(command==="map"){showMap()}
+else if(command==="hack"){print("Bypassing firewall...");print("Injecting payload...");print("Cracking passwords...");for(let i=0;i<5;i++) print("password found: "+randomPass());print("ACCESS GRANTED")}
+else if(command==="ai analyze"){print("AI analyzing target...");setTimeout(()=>{print("Threat level: HIGH");print("Vulnerability detected")},1000)}
+else if(command==="ai predict"){print("AI predicting network behavior...");setTimeout(()=>{print("Prediction: intrusion possible")},1000)}
+else{print("command not found")}
+cmd.value=""
+}})
+
+// MAP PANEL
+let mapPanel=document.getElementById("mapPanel")
+let mapImg=document.getElementById("mapImg")
+let locations=[
+"https://upload.wikimedia.org/wikipedia/commons/5/5b/London_Eye_Twilight_2008.jpg",
+"https://upload.wikimedia.org/wikipedia/commons/e/e6/Paris_Night.jpg",
+"https://upload.wikimedia.org/wikipedia/commons/0/0f/Tokyo_Tower_at_night.jpg",
+"https://upload.wikimedia.org/wikipedia/commons/d/d6/New_York_City_at_night_HDR.jpg"
+]
+
+function showMap(){mapPanel.style.display="block";changeLocation()}
+document.getElementById("changeLoc").addEventListener("click",changeLocation)
+document.getElementById("closeMap").addEventListener("click",()=>{mapPanel.style.display="none"})
+
+function changeLocation(){
+let idx=Math.floor(Math.random()*locations.length)
+mapImg.src=locations[idx]
+}
+</script>
+</body>
+</html>
